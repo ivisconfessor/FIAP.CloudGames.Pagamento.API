@@ -369,4 +369,6 @@ app.MapGet("/api/events/{aggregateId}", async (Guid aggregateId, IEventStore eve
 
 Log.Information("Iniciando FIAP.CloudGames.Pagamento.API...");
 
+app.Urls.Add("http://*:8080");
+
 app.Run();
