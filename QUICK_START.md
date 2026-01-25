@@ -36,7 +36,7 @@ dotnet run
 ### 4️⃣ Testar no Navegador (1 min)
 ```
 ✅ Health Check:
-   http://localhost:5000/api/health
+   http://localhost:8080/api/health
 
 ✅ RabbitMQ Management:
    http://localhost:15672
@@ -54,7 +54,7 @@ dotnet run
 ### Criar Pagamento
 ```bash
 # Nota: Substitua YOUR_JWT_TOKEN por um token válido
-curl -X POST http://localhost:5000/api/payments \
+curl -X POST http://localhost:8080/api/payments \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -72,7 +72,7 @@ curl -X POST http://localhost:5000/api/payments \
 
 ### Processar Pagamento
 ```bash
-curl -X POST http://localhost:5000/api/payments/abc-123-def/process \
+curl -X POST http://localhost:8080/api/payments/abc-123-def/process \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
