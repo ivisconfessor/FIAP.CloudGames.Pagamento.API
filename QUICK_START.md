@@ -14,7 +14,7 @@ dotnet --version  # 8.0+
 
 ### 2️⃣ Iniciar Infraestrutura (2 min)
 ```bash
-cd /Users/danuzamiranda/Library/CloudStorage/OneDrive-Pessoal/Estudos/FIAP/POS_TECH/repos/FIAP.CloudGames.Pagamento.API
+cd FIAP.CloudGames.Pagamento.API
 
 # Opção A: Script automatizado (recomendado)
 chmod +x test-rabbitmq.sh
