@@ -5,6 +5,7 @@ using FIAP.CloudGames.Pagamento.API.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MassTransit;
 
 namespace FIAP.CloudGames.Pagamento.API.Infrastructure.Configurations;
 
@@ -72,6 +73,39 @@ public static class DependencyResolverConfigurationExtensions
         services.AddHttpClient<IGameApiService, GameApiService>()
             .AddHttpMessageHandler<ForwardAuthTokenHandler>();
         services.AddSingleton<IEventStore, EventStore>();
+        
+        // Configuração do MassTransit com RabbitMQ
+        services.AddMassTransit(x =>
+        {
+            // Registrar todos os consumers do assembly
+            x.AddConsumers(typeof(DependencyResolverConfigurationExtensions).Assembly);
+            
+            x.UsingRabbitMq((context, cfg) =>
+            {
+                var rabbitMqHost = configuration["RabbitMQ:Host"] ?? "rabbitmq://localhost";
+                var username = configuration["RabbitMQ:Username"] ?? "guest";
+                var password = configuration["RabbitMQ:Password"] ?? "guest";
+
+                cfg.Host(new Uri(rabbitMqHost), h =>
+                {
+                    h.Username(username);
+                    h.Password(password);
+                });
+
+                // Configurar prefetch e concorrência
+                cfg.PrefetchCount = int.TryParse(configuration["MassTransit:PreFetchCount"], out var prefetch) ? prefetch : 10;
+                cfg.ConcurrentMessageLimit = int.TryParse(configuration["MassTransit:ConcurrentMessageLimit"], out var limit) ? limit : 5;
+
+                // Configurar endpoints dos consumers
+                cfg.ConfigureEndpoints(context);
+
+                // Adicionar configuração de retry
+                cfg.UseMessageRetry(r =>
+                {
+                    r.Interval(3, TimeSpan.FromSeconds(5)); // 3 tentativas com 5 segundos entre elas
+                });
+            });
+        });
         
         // CORS
         services.AddCors(options =>

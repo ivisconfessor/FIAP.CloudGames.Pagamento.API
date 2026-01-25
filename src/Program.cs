@@ -15,6 +15,7 @@ using FIAP.CloudGames.Pagamento.API.Application.Validators;
 using Serilog;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using MassTransit;
 
 // Configurar Serilog
 Log.Logger = new LoggerConfiguration()
@@ -104,7 +105,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Payment endpoints
-app.MapPost("/api/payments", async (CreatePaymentDto dto, ApplicationDbContext db, IGameApiService gameApiService, IEventStore eventStore, ClaimsPrincipal user, ILogger<Program> logger) =>
+app.MapPost("/api/payments", async (CreatePaymentDto dto, ApplicationDbContext db, IGameApiService gameApiService, IEventStore eventStore, IPublishEndpoint publishEndpoint, ClaimsPrincipal user, ILogger<Program> logger) =>
 {
     var userId = Guid.Parse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value);
     logger.LogInformation("Criando novo pagamento para usuário {UserId} e jogo {GameId}", userId, dto.GameId);
@@ -144,6 +145,7 @@ app.MapPost("/api/payments", async (CreatePaymentDto dto, ApplicationDbContext d
         payment.CreatedAt
     );
     await eventStore.SaveEventAsync(paymentCreatedEvent);
+    await publishEndpoint.Publish(paymentCreatedEvent);
 
     logger.LogInformation("Pagamento criado com sucesso. ID: {PaymentId}", payment.Id);
 
@@ -157,7 +159,7 @@ app.MapPost("/api/payments", async (CreatePaymentDto dto, ApplicationDbContext d
 .WithName("CreatePayment")
 .WithOpenApi();
 
-app.MapPost("/api/payments/{id}/process", async (Guid id, ApplicationDbContext db, IPaymentProcessingService paymentProcessingService, IEventStore eventStore, ILogger<Program> logger) =>
+app.MapPost("/api/payments/{id}/process", async (Guid id, ApplicationDbContext db, IPaymentProcessingService paymentProcessingService, IEventStore eventStore, IPublishEndpoint publishEndpoint, ILogger<Program> logger) =>
 {
     logger.LogInformation("Processando pagamento {PaymentId}", id);
     
@@ -186,6 +188,7 @@ app.MapPost("/api/payments/{id}/process", async (Guid id, ApplicationDbContext d
         DateTime.UtcNow
     );
     await eventStore.SaveEventAsync(paymentProcessingEvent);
+    await publishEndpoint.Publish(paymentProcessingEvent);
 
     // Processar pagamento
     var (success, transactionId, errorMessage) = await paymentProcessingService.ProcessPaymentAsync(payment);
@@ -210,6 +213,7 @@ app.MapPost("/api/payments/{id}/process", async (Guid id, ApplicationDbContext d
             DateTime.UtcNow
         );
         await eventStore.SaveEventAsync(paymentCompletedEvent);
+        await publishEndpoint.Publish(paymentCompletedEvent);
 
         var gamePurchasedEvent = new GamePurchasedEvent(
             payment.UserId,
@@ -218,6 +222,7 @@ app.MapPost("/api/payments/{id}/process", async (Guid id, ApplicationDbContext d
             DateTime.UtcNow
         );
         await eventStore.SaveEventAsync(gamePurchasedEvent);
+        await publishEndpoint.Publish(gamePurchasedEvent);
 
         logger.LogInformation("Pagamento {PaymentId} processado com sucesso", id);
     }
@@ -235,6 +240,7 @@ app.MapPost("/api/payments/{id}/process", async (Guid id, ApplicationDbContext d
             DateTime.UtcNow
         );
         await eventStore.SaveEventAsync(paymentFailedEvent);
+        await publishEndpoint.Publish(paymentFailedEvent);
 
         logger.LogWarning("Pagamento {PaymentId} falhou: {ErrorMessage}", id, errorMessage);
     }
